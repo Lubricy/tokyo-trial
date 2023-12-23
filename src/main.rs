@@ -3,17 +3,27 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio::time::{self, Duration};
-async fn producer(tx: mpsc::Sender<u64>, i: u64) {
+
+struct Large {
+    id: u64,
+    blob: Vec<String>
+}
+
+async fn producer(tx: mpsc::Sender<Large>, i: u64) {
     loop {
-        tx.send(i).await.unwrap_or_else(|e| println!("error! {} failed: {}", i, e));
+        let signal = Large {
+            id: i,
+            blob: std::iter::repeat("Hello".to_owned()).take(100).collect()
+        };
+        tx.send(signal).await.unwrap_or_else(|e| println!("error! {} failed: {}", i, e));
         time::sleep(Duration::from_millis(10)).await;
     }
 }
 
-fn consumer(mut rx: mpsc::Receiver<u64>) {
+fn consumer(mut rx: mpsc::Receiver<Large>) {
     let mut counter = 0;
     while let Some(i) = rx.blocking_recv() {
-        counter += i;
+        counter += i.id;
     }
 }
 
